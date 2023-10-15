@@ -19,7 +19,7 @@ async fn main() {
     let cache = Cache::new();
     let cdn = Arc::new(Cdn::new(storage, cache));
 
-    let address: SocketAddr = "127.0.0.1:8080".parse().unwrap();
+    let address: SocketAddr = "127.0.0.1:8080".parse().expect("Could not parse SocketAddr");
 
     let server = HttpServer::new(move || {
         App::new()
