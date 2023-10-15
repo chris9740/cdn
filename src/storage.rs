@@ -34,7 +34,7 @@ impl Storage {
         }
     }
 
-    pub fn _put(&self, resource: Resource, id: &str, image_data: Vec<u8>) {
+    pub fn _put(&self, _resource: Resource, _id: &str, image_data: Vec<u8>) {
         let digest = md5::compute(image_data);
         let hash = format!("{digest:x}");
 

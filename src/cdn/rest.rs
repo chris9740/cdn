@@ -3,7 +3,7 @@ use std::{fmt::Display, sync::Arc};
 use actix_web::{web, HttpRequest, HttpResponse};
 use strum::{EnumIter, IntoEnumIterator};
 
-use super::CDN;
+use super::Cdn;
 
 #[derive(Debug, EnumIter)]
 pub enum Resource {
@@ -51,11 +51,11 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
 async fn get_resource(
     request: HttpRequest,
     path: web::Path<(String, String)>,
-    data: web::Data<Arc<CDN>>,
+    data: web::Data<Arc<Cdn>>,
 ) -> HttpResponse {
     let uri = request.uri().to_string();
     let segments: Vec<&str> = uri
-        .split("/")
+        .split('/')
         .filter(|segment| !segment.is_empty())
         .collect();
 
@@ -65,12 +65,12 @@ async fn get_resource(
         let resource_id = &path.0;
         let resource_hash = &path.1;
 
-        let key = format!("{}:{resource_id}:{resource_hash}", resource.to_string());
+        let key = format!("{}:{resource_id}:{resource_hash}", resource);
         let cdn = data.get_ref();
 
         let image_data = if let Some(data) = cdn.cache.get(&key) {
             Some(data)
-        } else if let Some(data) = cdn.storage.get(resource, &resource_id, &resource_hash) {
+        } else if let Some(data) = cdn.storage.get(resource, resource_id, resource_hash) {
             cdn.cache.put(key.to_owned(), data.clone());
 
             Some(data)

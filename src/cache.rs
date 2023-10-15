@@ -27,7 +27,7 @@ impl Cache {
     pub fn put(&self, key: String, value: Vec<u8>) {
         let mut cache = self.data.write().unwrap();
         let mutex = cache.entry(key).or_insert(Mutex::new(value.clone()));
-        let mut data = mutex.lock().unwrap();
+        let data = mutex.get_mut().unwrap();
         *data = value;
     }
 }
