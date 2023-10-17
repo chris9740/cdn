@@ -1,11 +1,9 @@
 use crate::{cache::Cache, storage::Storage};
 
-pub mod rest;
-
 #[derive(Clone)]
 pub struct Cdn {
-    storage: Storage,
-    cache: Cache,
+    pub storage: Storage,
+    pub cache: Cache,
 }
 
 impl Cdn {

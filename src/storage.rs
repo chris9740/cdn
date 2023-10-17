@@ -5,7 +5,7 @@ use image::io::Reader;
 use image::ImageFormat;
 use std::io::Cursor;
 
-use crate::cdn::rest::Resource;
+use crate::rest::Resource;
 
 #[derive(Clone)]
 pub struct Storage {
@@ -28,19 +28,16 @@ impl Storage {
     pub fn get(&self, resource: Resource, id: &str, filename: &str) -> Option<Vec<u8>> {
         let path = self.build_path(resource, id, filename);
 
-        println!("{path:?}");
-
         match path.try_exists() {
             Ok(true) => Some(fs::read(path).unwrap_or_default()),
             _ => None,
         }
     }
 
-    pub fn put(&self, resource: Resource, id: &str, image_data: Vec<u8>) -> Result<()> {
+    pub fn put(&self, resource: Resource, id: &str, image_data: Vec<u8>) -> Result<String> {
         let digest = md5::compute(&image_data);
         let hash = format!("{digest:x}");
-        let filename = format!("{hash}.png");
-
+        let filename = format!("{hash}.webp");
         let current_dir = env::current_dir()?;
         let target_path = current_dir.join(self.build_path(resource, id, &filename));
 
@@ -55,11 +52,12 @@ impl Storage {
         };
 
         let image = reader.decode()?;
+        let default_image_size = 1024;
 
         let smallest_dimension = std::cmp::min(image.width(), image.height());
-        let final_size = std::cmp::min(smallest_dimension, 1024);
+        let image_size = std::cmp::min(smallest_dimension, default_image_size);
 
-        let image = image.crop_imm(0, 0, final_size, final_size);
+        let image = image.crop_imm(0, 0, image_size, image_size);
 
         match target_path.parent() {
             Some(parent) => fs::create_dir_all(parent)?,
@@ -68,6 +66,6 @@ impl Storage {
 
         image.save(target_path)?;
 
-        Ok(())
+        Ok(hash)
     }
 }

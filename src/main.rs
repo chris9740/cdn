@@ -2,11 +2,12 @@ use std::{env, net::SocketAddr, sync::Arc};
 
 use actix_web::{web, App, HttpServer};
 use cache::Cache;
-use cdn::{rest, Cdn};
+use cdn::Cdn;
 use storage::Storage;
 
 mod cache;
 mod cdn;
+mod rest;
 mod storage;
 
 #[macro_use]
@@ -19,7 +20,9 @@ async fn main() {
     let cache = Cache::new();
     let cdn = Arc::new(Cdn::new(storage, cache));
 
-    let address: SocketAddr = "127.0.0.1:8080".parse().expect("Could not parse SocketAddr");
+    let address: SocketAddr = "127.0.0.1:8080"
+        .parse()
+        .expect("Could not parse SocketAddr");
 
     let server = HttpServer::new(move || {
         App::new()

@@ -1,39 +1,50 @@
-// cache.rs
-
-use std::collections::HashMap;
-use std::sync::{RwLock, Mutex, Arc};
-
-use anyhow::{Result, anyhow};
+use anyhow::Result;
+use serde::Serialize;
+use redis::Commands;
 
 #[derive(Clone)]
 pub struct Cache {
-    data: Arc<RwLock<HashMap<String, Mutex<Vec<u8>>>>>
+    pub redis_client: redis::Client,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Health {
+    memory_usage: String,
 }
 
 impl Cache {
     pub fn new() -> Self {
         Cache {
-            data: Arc::new(RwLock::new(HashMap::new())),
+            redis_client: redis::Client::open("redis://127.0.0.1")
+                .expect("Failed to open connection to redis"),
         }
     }
 
     pub fn get(&self, key: &str) -> Option<Vec<u8>> {
-        if let Some(mutex) = self.data.read().ok()?.get(key) {
-            let data = mutex.lock().ok()?;
-            Some(data.clone())
-        } else {
-            None
-        }
+        let mut conn = self.redis_client.get_connection().ok()?;
+        let data: redis::RedisResult<Option<Vec<u8>>> = conn.get(key);
+
+        data.ok()?
     }
 
-    pub fn put(&self, key: String, value: Vec<u8>) -> Result<()> {
-        let mut cache = self.data.write().or(Err(anyhow!("RwLock poisoned")))?;
+    pub fn put(&self, key: String, value: &Vec<u8>) -> Result<()> {
+        let mut conn = self.redis_client.get_connection()?;
 
-        let mutex = cache.entry(key).or_insert(Mutex::new(value.clone()));
-        let data = mutex.get_mut().or(Err(anyhow!("Failed to get mutable reference to data")))?;
-
-        *data = value;
+        conn.set(key, value)?;
 
         Ok(())
+    }
+
+    pub fn health(&self) -> Option<Health> {
+        let mut conn = self.redis_client.get_connection().ok()?;
+        let info: String = redis::cmd("INFO").query(&mut conn).ok()?;
+
+        let memory_usage: String = info
+            .lines()
+            .find(|line| line.starts_with("used_memory_human:"))
+            .map(|line| line.trim_start_matches("used_memory_human:").to_string())
+            .unwrap_or("(error)".to_string());
+
+        Some(Health { memory_usage })
     }
 }
