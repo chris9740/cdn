@@ -1,6 +1,6 @@
 use std::{io::Cursor, sync::Arc};
 
-use actix_web::{error::ErrorInternalServerError, web, HttpRequest, HttpResponse, Result};
+use actix_web::{error::{ErrorInternalServerError, ErrorBadRequest}, web, HttpRequest, HttpResponse, Result};
 use image::{imageops::FilterType, io::Reader, ImageFormat};
 use serde::Deserialize;
 
@@ -39,6 +39,10 @@ pub async fn get_resource(
     let size = query.size.unwrap_or(256);
     let resource_type = Resource::try_from(segments[0]);
 
+    if size % 64 != 0 {
+        return Err(ErrorBadRequest("Size must be divisible by 64"));
+    }
+
     if let Ok(resource) = resource_type {
         let id = &path.0;
         let hash = &path.1;
@@ -62,7 +66,7 @@ pub async fn get_resource(
             Some(image_data) => {
                 let mut reader = Reader::new(Cursor::new(&image_data));
 
-                reader.set_format(ImageFormat::WebP);
+                reader.set_format(ImageFormat::Png);
 
                 let mut image = unwrap_or_return!(
                     reader.decode(),
@@ -76,7 +80,7 @@ pub async fn get_resource(
                 let mut buffer = Cursor::new(Vec::new());
 
                 unwrap_or_return!(
-                    image.write_to(&mut buffer, ImageFormat::WebP),
+                    image.write_to(&mut buffer, ImageFormat::Png),
                     ErrorInternalServerError("Buffer overflow")
                 );
 
@@ -89,7 +93,7 @@ pub async fn get_resource(
                     );
                 }
 
-                Ok(HttpResponse::Ok().content_type("image/webp").body(bytes))
+                Ok(HttpResponse::Ok().content_type("image/png").body(bytes))
             }
             None => Ok(
                 HttpResponse::NotFound().body("Unsuccessful, the requested image was not found")

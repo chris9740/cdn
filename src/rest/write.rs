@@ -49,7 +49,7 @@ pub async fn push_resource(
 
     Ok(match data.storage.put(Resource::Avatars, id, buffer) {
         Ok(hash) => HttpResponse::Created().json(UploadResponse { hash }),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        Err(why) => HttpResponse::InternalServerError().body(why.to_string()),
     })
 }
 
@@ -71,14 +71,12 @@ impl FromRequest for Authorized {
 fn is_authorized(req: &HttpRequest) -> bool {
     match req.headers().get("Authorization") {
         Some(header) => {
-            if let Ok(secret) = env::var("CDN_SECRET") {
-                return header
-                    .to_str()
-                    .map(|header_value| header_value == secret)
-                    .unwrap_or(false);
-            }
+            let secret = env::var("CDN_SECRET").unwrap_or("d3v_secret".to_string());
 
-            false
+            header
+                .to_str()
+                .map(|header_value| header_value == secret)
+                .unwrap_or(false)
         }
         None => false,
     }

@@ -10,7 +10,7 @@ actix-multipart = "0.6.1"
 actix-web = {version = "4.4.0", default-features = false, features = ["rustls", "macros"]}
 anyhow = "1.0.75"
 futures-util = "0.3.28"
-image = {version = "0.24.7", features = ["webp-encoder"]}
+image = {version = "0.24.7"}
 md5 = "0.7.0"
 redis = "0.23.3"
 serde = { version = "1.0.189", features = ["derive"] }

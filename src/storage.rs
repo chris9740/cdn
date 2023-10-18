@@ -1,6 +1,8 @@
+use std::fs::OpenOptions;
 use std::{env, fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
+use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::io::Reader;
 use image::ImageFormat;
 use std::io::Cursor;
@@ -37,10 +39,9 @@ impl Storage {
     pub fn put(&self, resource: Resource, id: &str, image_data: Vec<u8>) -> Result<String> {
         let digest = md5::compute(&image_data);
         let hash = format!("{digest:x}");
-        let filename = format!("{hash}.webp");
+        let filename = format!("{hash}.png");
         let current_dir = env::current_dir()?;
         let target_path = current_dir.join(self.build_path(resource, id, &filename));
-
         let reader = Reader::new(Cursor::new(&image_data)).with_guessed_format()?;
 
         match reader.format() {
@@ -62,7 +63,11 @@ impl Storage {
             None => return Err(anyhow!("Could not get parent directory for target path")),
         };
 
-        image.save(target_path)?;
+        let file = OpenOptions::new().write(true).create(true).open(target_path)?;
+        let png_options =
+            PngEncoder::new_with_quality(file, CompressionType::Fast, FilterType::Adaptive);
+
+        image.write_with_encoder(png_options)?;
 
         Ok(hash)
     }
