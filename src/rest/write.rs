@@ -27,30 +27,30 @@ pub async fn push_resource(
     path: web::Path<String>,
     form: MultipartForm<UploadForm>,
     data: web::Data<Arc<Cdn>>,
-) -> HttpResponse {
+) -> Result<HttpResponse> {
     const FILE_SIZE_LIMIT: usize = 1024 * 1024 * 20; // 20 MB
 
     let id = &path.as_str();
 
     match form.file.size {
-        0 => return HttpResponse::BadRequest().finish(),
+        0 => return Ok(HttpResponse::BadRequest().finish()),
         size if size > FILE_SIZE_LIMIT => {
-            return HttpResponse::BadRequest().body("Image is too large")
+            return Ok(HttpResponse::BadRequest().body("Image is too large"))
         }
         _ => {}
     };
 
     let temp_path = form.file.file.path();
-    let mut f = File::open(temp_path).expect("Tempfile should exist");
-    let metadata = f.metadata().expect("Failed to read metadata");
+    let mut f = File::open(temp_path)?;
+    let metadata = f.metadata()?;
     let mut buffer = vec![0; metadata.len() as usize];
 
-    f.read_exact(&mut buffer).expect("Buffer overflow");
+    f.read_exact(&mut buffer)?;
 
-    match data.storage.put(Resource::Avatars, id, buffer) {
+    Ok(match data.storage.put(Resource::Avatars, id, buffer) {
         Ok(hash) => HttpResponse::Created().json(UploadResponse { hash }),
         Err(_) => HttpResponse::InternalServerError().finish(),
-    }
+    })
 }
 
 pub struct Authorized;
@@ -70,11 +70,12 @@ impl FromRequest for Authorized {
 
 fn is_authorized(req: &HttpRequest) -> bool {
     match req.headers().get("Authorization") {
-        Some(value) => {
+        Some(header) => {
             if let Ok(secret) = env::var("CDN_SECRET") {
-                let header_value = value.to_str().unwrap_or_default();
-
-                return !header_value.is_empty() && header_value == secret;
+                return header
+                    .to_str()
+                    .map(|header_value| header_value == secret)
+                    .unwrap_or(false);
             }
 
             false

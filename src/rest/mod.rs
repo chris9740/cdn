@@ -2,6 +2,7 @@ pub mod read;
 pub mod write;
 
 use actix_web::{web, HttpResponse};
+use serde::Serialize;
 use std::{fmt::Display, sync::Arc};
 use strum::{EnumIter, IntoEnumIterator};
 
@@ -55,9 +56,16 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.route("health", web::get().to(get_health));
 }
 
+#[derive(Serialize)]
+struct GenericError {
+    error: String,
+}
+
 async fn get_health(data: web::Data<Arc<Cdn>>) -> HttpResponse {
     match data.cache.health() {
         Some(health) => HttpResponse::Ok().json(health),
-        None => HttpResponse::InternalServerError().finish(),
+        None => HttpResponse::InternalServerError().json(GenericError {
+            error: String::from("Error reading from redis"),
+        }),
     }
 }

@@ -41,9 +41,7 @@ impl Storage {
         let current_dir = env::current_dir()?;
         let target_path = current_dir.join(self.build_path(resource, id, &filename));
 
-        let reader = Reader::new(Cursor::new(&image_data))
-            .with_guessed_format()
-            .expect("Couldn't get format");
+        let reader = Reader::new(Cursor::new(&image_data)).with_guessed_format()?;
 
         match reader.format() {
             Some(ImageFormat::Gif | ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::WebP) => (),
