@@ -1,12 +1,20 @@
 pub mod read;
 pub mod write;
 
-use actix_web::{web, HttpResponse};
+use actix_web::{
+    dev::Payload,
+    error::{ErrorInternalServerError, ErrorUnauthorized},
+    web, Error, FromRequest, HttpRequest, HttpResponse, Result,
+};
+use futures_util::future::{ready, Ready};
 use serde::Serialize;
-use std::{fmt::Display, sync::Arc};
+use std::{env, fmt::Display, sync::Arc};
 use strum::{EnumIter, IntoEnumIterator};
 
-use crate::rest::{read::get_resource, write::push_resource};
+use crate::{
+    macros::{unwrap_or_return, error},
+    rest::{read::get_resource, write::push_resource},
+};
 
 use super::Cdn;
 
@@ -14,6 +22,15 @@ use super::Cdn;
 pub enum Resource {
     Avatars,
     Icons,
+}
+
+impl Resource {
+    pub fn singleton(&self) -> bool {
+        match self {
+            Self::Avatars => true,
+            Self::Icons => true,
+        }
+    }
 }
 
 impl Display for Resource {
@@ -44,8 +61,8 @@ impl TryFrom<&str> for Resource {
 fn configure_resource(resource: Resource, cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope(&resource.to_string())
-            .route("{resource_id}/{resource_hash}", web::get().to(get_resource))
-            .route("{resource_id}", web::put().to(push_resource)),
+            .route(r"{id}/{image_hash:(a_)?[0-9a-fA-F]{32}}.{ext:(png|gif)}", web::get().to(get_resource))
+            .route("{id}", web::put().to(push_resource)),
     );
 }
 
@@ -57,15 +74,55 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
 }
 
 #[derive(Serialize)]
-struct GenericError {
-    error: String,
+pub struct GenericError {
+    pub error: String,
 }
 
-async fn get_health(data: web::Data<Arc<Cdn>>) -> HttpResponse {
-    match data.cache.health() {
-        Some(health) => HttpResponse::Ok().json(health),
-        None => HttpResponse::InternalServerError().json(GenericError {
-            error: String::from("Error reading from redis"),
+async fn get_health(_: Authorized, data: web::Data<Arc<Cdn>>) -> Result<HttpResponse> {
+    let mut con = unwrap_or_return!(
+        data.redis.get_connection(),
+        ErrorInternalServerError("Redis connection error")
+    );
+
+    Ok(match data.cache.health(&mut con) {
+        Ok(health) => HttpResponse::Ok().json(health),
+        Err(why) => HttpResponse::InternalServerError().json(GenericError {
+            error: why.to_string(),
         }),
+    })
+}
+
+pub struct Authorized;
+
+impl FromRequest for Authorized {
+    type Error = Error;
+    type Future = Ready<Result<Self, Error>>;
+
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        if is_authorized(req) {
+            ready(Ok(Authorized))
+        } else {
+            ready(Err(ErrorUnauthorized("Unauthorized.")))
+        }
+    }
+}
+
+fn is_authorized(req: &HttpRequest) -> bool {
+    match req.headers().get("Authorization") {
+        Some(header) => {
+            let secret = env::var("CDN_SECRET").unwrap_or_else(|_| {
+                if cfg!(debug_assertions) {
+                    "d3v_secret".to_string()
+                } else {
+                    error!("The CDN_SECRET environment variable is missing from the current environment");
+                }
+            });
+
+            header
+                .to_str()
+                .map(|header_value| header_value == secret)
+                .unwrap_or(false)
+        }
+        None => false,
     }
 }

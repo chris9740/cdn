@@ -1,5 +1,5 @@
 use std::fs::OpenOptions;
-use std::{env, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
@@ -19,16 +19,15 @@ impl Storage {
         Self { storage_path }
     }
 
-    fn build_path(&self, resource: Resource, id: &str, filename: &str) -> PathBuf {
+    fn path(&self, resource: &Resource, id: &str) -> PathBuf {
         PathBuf::new()
             .join(&self.storage_path)
             .join(resource.to_string())
             .join(id)
-            .join(filename)
     }
 
     pub fn get(&self, resource: Resource, id: &str, filename: &str) -> Option<Vec<u8>> {
-        let path = self.build_path(resource, id, filename);
+        let path = self.path(&resource, id).join(filename);
 
         match path.try_exists() {
             Ok(true) => Some(fs::read(path).unwrap_or_default()),
@@ -36,39 +35,55 @@ impl Storage {
         }
     }
 
-    pub fn put(&self, resource: Resource, id: &str, image_data: Vec<u8>) -> Result<String> {
-        let digest = md5::compute(&image_data);
-        let hash = format!("{digest:x}");
-        let filename = format!("{hash}.png");
-        let current_dir = env::current_dir()?;
-        let target_path = current_dir.join(self.build_path(resource, id, &filename));
+    pub fn put(&self, resource: Resource, id: &str, image_data: Vec<u8>, hash: &str) -> Result<String> {
         let reader = Reader::new(Cursor::new(&image_data)).with_guessed_format()?;
 
-        match reader.format() {
-            Some(ImageFormat::Gif | ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::WebP) => (),
-            Some(_) => return Err(anyhow!("Unsupported image format")),
-            _ => return Err(anyhow!("Invalid file format")),
+        let format = reader
+            .format()
+            .ok_or_else(|| anyhow!("Invalid file format"))?;
+
+        match format {
+            ImageFormat::Gif | ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::WebP => (),
+            _ => return Err(anyhow!("Unsupported image format")),
         };
+
+        let is_animated = format.eq(&ImageFormat::Gif);
+
+        let filename = if !is_animated {
+            format!("{hash}.png")
+        } else {
+            format!("a_{hash}.png")
+        };
+
+        let base_path = self.path(&resource, id);
 
         let image = reader.decode()?;
         let default_image_size = 1024;
 
         let smallest_dimension = std::cmp::min(image.width(), image.height());
         let image_size = std::cmp::min(smallest_dimension, default_image_size);
-
         let image = image.crop_imm(0, 0, image_size, image_size);
 
-        match target_path.parent() {
-            Some(parent) => fs::create_dir_all(parent)?,
-            None => return Err(anyhow!("Could not get parent directory for target path")),
-        };
+        fs::create_dir_all(&base_path)?;
 
-        let file = OpenOptions::new().write(true).create(true).open(target_path)?;
+        if resource.singleton() {
+            for entry in base_path.read_dir()? {
+                fs::remove_file(entry?.path())?;
+            }
+        }
+
+        let base_path = base_path.join(&filename);
+
+        let dest_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(base_path)?;
+
         let png_options =
-            PngEncoder::new_with_quality(file, CompressionType::Fast, FilterType::Adaptive);
+            PngEncoder::new_with_quality(dest_file, CompressionType::Fast, FilterType::NoFilter);
 
         image.write_with_encoder(png_options)?;
 
-        Ok(hash)
+        Ok(filename)
     }
 }

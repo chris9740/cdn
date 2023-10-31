@@ -1,23 +1,18 @@
-use std::{io::Cursor, sync::Arc};
+use std::{
+    io::{BufReader, Cursor},
+    sync::Arc,
+};
 
-use actix_web::{error::{ErrorInternalServerError, ErrorBadRequest}, web, HttpRequest, HttpResponse, Result};
+use actix_web::{
+    error::{ErrorBadRequest, ErrorInternalServerError},
+    web, HttpRequest, HttpResponse, Result,
+};
 use image::{imageops::FilterType, io::Reader, ImageFormat};
 use serde::Deserialize;
 
-use crate::cdn::Cdn;
+use crate::{cdn::Cdn, macros::unwrap_or_return};
 
-use super::Resource;
-
-macro_rules! unwrap_or_return {
-    ($result:expr, $error:expr) => {
-        match $result {
-            Ok(val) => val,
-            Err(_) => {
-                return Err($error);
-            }
-        }
-    };
-}
+use super::{GenericError, Resource};
 
 #[derive(Debug, Deserialize)]
 pub struct QueryParams {
@@ -26,7 +21,7 @@ pub struct QueryParams {
 
 pub async fn get_resource(
     request: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(String, String, String)>,
     data: web::Data<Arc<Cdn>>,
     query: web::Query<QueryParams>,
 ) -> Result<HttpResponse> {
@@ -43,63 +38,85 @@ pub async fn get_resource(
         return Err(ErrorBadRequest("Size must be divisible by 64"));
     }
 
+    if size > 1024 {
+        return Err(ErrorBadRequest("Size cannot be larger than 1024"));
+    }
+
     if let Ok(resource) = resource_type {
         let id = &path.0;
-        let hash = &path.1;
+        let image_hash = &path.1;
+        let ext = &path.2;
+        let filename = format!("{image_hash}.{ext}");
 
-        let key = format!("{resource}:{id}:{hash}:{size}");
+        let key = format!("{id}:{image_hash}:{ext}:{size}");
         let cdn = data.get_ref();
 
         let mut is_from_cache = false;
 
-        let image_data = if let Some(data) = cdn.cache.get(&key) {
-            is_from_cache = true;
+        let mut con = unwrap_or_return!(
+            data.redis.get_connection(),
+            ErrorInternalServerError("Redis connection error")
+        );
 
-            Some(data)
-        } else if let Some(data) = cdn.storage.get(resource, id, hash) {
-            Some(data)
-        } else {
-            None
+        let image_data = match cdn.cache.get(&mut con, &key) {
+            Some(data) => {
+                is_from_cache = true;
+
+                Some(data)
+            }
+            _ => cdn.storage.get(resource, id, &filename),
         };
 
         return match image_data {
             Some(image_data) => {
-                let mut reader = Reader::new(Cursor::new(&image_data));
+                let bytes = if is_from_cache {
+                    image_data
+                } else {
+                    let cursor = Cursor::new(&image_data);
+                    let buf_reader = BufReader::new(cursor);
+                    let mut reader = Reader::new(buf_reader);
 
-                reader.set_format(ImageFormat::Png);
+                    reader.set_format(ImageFormat::Png);
 
-                let mut image = unwrap_or_return!(
-                    reader.decode(),
-                    ErrorInternalServerError("Decoding of image failed")
-                );
+                    let mut image = unwrap_or_return!(
+                        reader.decode(),
+                        ErrorInternalServerError("Decoding of image failed")
+                    );
 
-                if !is_from_cache {
                     image = image.resize_exact(size, size, FilterType::Triangle);
-                }
 
-                let mut buffer = Cursor::new(Vec::new());
+                    let mut buffer = Cursor::new(Vec::new());
 
-                unwrap_or_return!(
-                    image.write_to(&mut buffer, ImageFormat::Png),
-                    ErrorInternalServerError("Buffer overflow")
-                );
-
-                let bytes = buffer.into_inner();
-
-                if !is_from_cache {
                     unwrap_or_return!(
-                        cdn.cache.put(key.to_owned(), &bytes),
+                        image.write_to(&mut buffer, ImageFormat::Png),
+                        ErrorInternalServerError("Buffer overflow")
+                    );
+
+                    let bytes = buffer.into_inner();
+
+                    unwrap_or_return!(
+                        cdn.cache.put(&mut con, &key, &bytes),
                         ErrorInternalServerError("Failed to write to cache")
                     );
-                }
 
-                Ok(HttpResponse::Ok().content_type("image/png").body(bytes))
+                    bytes
+                };
+
+                Ok(HttpResponse::Ok()
+                    .content_type("image/png")
+                    .append_header((
+                        "X-Origin-Status",
+                        if is_from_cache { "cache" } else { "origin" },
+                    ))
+                    .body(bytes))
             }
-            None => Ok(
-                HttpResponse::NotFound().body("Unsuccessful, the requested image was not found")
-            ),
+            None => Ok(HttpResponse::NotFound().json(GenericError {
+                error: "Image not found".to_string(),
+            })),
         };
     }
 
-    Ok(HttpResponse::NotFound().finish())
+    Ok(HttpResponse::NotFound().json(GenericError {
+        error: "Resource not found".to_string(),
+    }))
 }
