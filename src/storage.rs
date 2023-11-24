@@ -30,12 +30,18 @@ impl Storage {
         let path = self.path(&resource, id).join(filename);
 
         match path.try_exists() {
-            Ok(true) => Some(fs::read(path).unwrap_or_default()),
+            Ok(true) => fs::read(path).ok(),
             _ => None,
         }
     }
 
-    pub fn put(&self, resource: Resource, id: &str, image_data: Vec<u8>, hash: &str) -> Result<String> {
+    pub fn put(
+        &self,
+        resource: Resource,
+        id: &str,
+        image_data: Vec<u8>,
+        hash: &str,
+    ) -> Result<String> {
         let reader = Reader::new(Cursor::new(&image_data)).with_guessed_format()?;
 
         let format = reader

@@ -19,6 +19,9 @@ pub struct QueryParams {
     size: Option<u32>,
 }
 
+const MAX_SIZE: u32 = 2048;
+const SIZES: [u32; 5] = [128, 256, 512, 1024, MAX_SIZE];
+
 pub async fn get_resource(
     request: HttpRequest,
     path: web::Path<(String, String, String)>,
@@ -34,12 +37,12 @@ pub async fn get_resource(
     let size = query.size.unwrap_or(256);
     let resource_type = Resource::try_from(segments[0]);
 
-    if size % 64 != 0 {
-        return Err(ErrorBadRequest("Size must be divisible by 64"));
+    if !SIZES.contains(&size) {
+        return Err(ErrorBadRequest("The specified size is not a valid number"));
     }
 
-    if size > 1024 {
-        return Err(ErrorBadRequest("Size cannot be larger than 1024"));
+    if size > MAX_SIZE {
+        return Err(ErrorBadRequest(format!("Size cannot be larger than {MAX_SIZE}")));
     }
 
     if let Ok(resource) = resource_type {
