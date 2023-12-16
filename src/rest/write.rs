@@ -14,7 +14,7 @@ use std::str::Utf8Error;
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::cdn::Cdn;
+use crate::cdn::{Cdn, Connected};
 use crate::rest::Resource;
 
 use super::GenericError;
@@ -72,7 +72,7 @@ const FILE_SIZE_LIMIT: usize = ONE_MB * 20;
 pub async fn push_resource(
     path: web::Path<String>,
     mut payload: Multipart,
-    data: web::Data<Arc<Cdn>>,
+    data: web::Data<Arc<Cdn<Connected>>>,
 ) -> Result<HttpResponse, UploadError> {
     let id = &path.as_str();
 
@@ -159,5 +159,5 @@ fn verify_signature(data: &[u8], signature: &[u8]) -> Result<bool, ErrorStack> {
     let mut verifier = Verifier::new(MessageDigest::md5(), &pkey)?;
 
     verifier.update(data)?;
-    verifier.verify(&signature)
+    verifier.verify(signature)
 }

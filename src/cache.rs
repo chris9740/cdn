@@ -12,6 +12,12 @@ pub struct Health {
     uptime_seconds: u32,
 }
 
+impl Default for Cache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cache {
     pub fn new() -> Self {
         Cache {}

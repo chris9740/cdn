@@ -10,7 +10,7 @@ use actix_web::{
 use image::{imageops::FilterType, io::Reader, ImageFormat};
 use serde::Deserialize;
 
-use crate::{cdn::Cdn, macros::unwrap_or_return};
+use crate::{cdn::{Cdn, Connected}, unwrap_or_return};
 
 use super::{GenericError, Resource};
 
@@ -25,7 +25,7 @@ const SIZES: [u32; 5] = [128, 256, 512, 1024, MAX_SIZE];
 pub async fn get_resource(
     request: HttpRequest,
     path: web::Path<(String, String, String)>,
-    data: web::Data<Arc<Cdn>>,
+    data: web::Data<Arc<Cdn<Connected>>>,
     query: web::Query<QueryParams>,
 ) -> Result<HttpResponse> {
     let uri = request.uri().to_string();
@@ -55,10 +55,11 @@ pub async fn get_resource(
         let cdn = data.get_ref();
 
         let mut is_from_cache = false;
+        let redis = data.redis();
 
         let mut con = unwrap_or_return!(
-            data.redis.get_connection(),
-            ErrorInternalServerError("Redis connection error")
+            redis.lock(),
+            ErrorInternalServerError("Connection error with redis")
         );
 
         let image_data = match cdn.cache.get(&mut con, &key) {

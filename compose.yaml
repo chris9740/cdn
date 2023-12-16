@@ -1,0 +1,31 @@
+version: "3"
+
+services:
+    http:
+        build: .
+        ports:
+            - "8080:8080"
+        environment:
+            - REDIS_HOST=redis://redis
+            - CDN_STORAGE_PATH=/srv/cdn
+        networks:
+            - cdn
+        volumes:
+            - ./:/usr/src/rs-cdn
+        command: ./target/x86_64-unknown-linux-gnu/debug/rs_cdn
+        depends_on:
+            redis:
+                condition: service_started
+    redis:
+        image: redis
+        ports:
+            - "6379:6379"
+        environment:
+            # This disables persistence
+            - REDIS_SAVE=""
+            - REDIS_APPENDONLY=no
+        networks:
+            - cdn
+
+networks:
+    cdn:

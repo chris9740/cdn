@@ -7,8 +7,8 @@ use std::{fmt::Display, sync::Arc};
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
-    macros::unwrap_or_return,
-    rest::{read::get_resource, write::push_resource},
+    unwrap_or_return,
+    rest::{read::get_resource, write::push_resource}, cdn::Connected,
 };
 
 use super::Cdn;
@@ -76,10 +76,12 @@ pub struct GenericError {
     pub error: String,
 }
 
-async fn get_health(data: web::Data<Arc<Cdn>>) -> Result<HttpResponse> {
+async fn get_health(data: web::Data<Arc<Cdn<Connected>>>) -> Result<HttpResponse> {
+    let redis = data.redis();
+
     let mut con = unwrap_or_return!(
-        data.redis.get_connection(),
-        ErrorInternalServerError("Redis connection error")
+        redis.lock(),
+        ErrorInternalServerError("Connection error with redis")
     );
 
     Ok(match data.cache.health(&mut con) {

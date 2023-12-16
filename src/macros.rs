@@ -1,3 +1,4 @@
+#[macro_export]
 macro_rules! error {
     ($($message:tt)*) => ({
         eprintln!($($message)*);
@@ -5,6 +6,7 @@ macro_rules! error {
     })
 }
 
+#[macro_export]
 macro_rules! unwrap_or_return {
     ($result:expr, $error:expr) => {
         match $result {
@@ -15,6 +17,3 @@ macro_rules! unwrap_or_return {
         }
     };
 }
-
-pub(crate) use error;
-pub(crate) use unwrap_or_return;

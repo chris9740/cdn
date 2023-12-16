@@ -15,8 +15,8 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new(storage_path: String) -> Self {
-        Self { storage_path }
+    pub fn new(storage_path: &str) -> Self {
+        Self { storage_path: storage_path.to_string() }
     }
 
     fn path(&self, resource: &Resource, id: &str) -> PathBuf {
