@@ -46,16 +46,16 @@ To generate a signature for development, use the provided script:
 ./create_signature.sh <path_to_image>
 ```
 
-Incorporate the output directly into the `signature` field when making a PUT request.
+Incorporate the output directly into the `signature` field when making a PUOS request.
 
 ## Uploading Resources
 
 Uploading a new resource requires a valid `signature` as outlined in the Authentication section.
 
-Example PUT Request:
+Example POST Request:
 
 ```bash
-curl -X PUT http://localhost:8080/avatars/1234567890 \
+curl -X POST http://localhost:8080/avatars/1234567890 \
  -H 'Content-Type: multipart/form-data' \
  -F "image=@assets/orange.jpg" \
  -F "signature=$(./create_signature.sh assets/orange.jpg)"

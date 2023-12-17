@@ -60,7 +60,7 @@ fn configure_resource(resource: Resource, cfg: &mut web::ServiceConfig) {
                 r"{id}/{image_hash:(a_)?[0-9a-fA-F]{32}}.{ext:(png|gif)}",
                 web::get().to(get_resource),
             )
-            .route("{id}", web::put().to(push_resource)),
+            .route("{id}", web::post().to(push_resource)),
     );
 }
 
