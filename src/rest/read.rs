@@ -114,9 +114,7 @@ pub async fn get_resource(
                     ))
                     .body(bytes))
             }
-            None => Ok(HttpResponse::NotFound().json(GenericError {
-                error: "Image not found".to_string(),
-            })),
+            None => Ok(HttpResponse::NotFound().finish()),
         };
     }
 
