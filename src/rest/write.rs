@@ -10,6 +10,7 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::sign::Verifier;
 use serde::Serialize;
+use std::fs;
 use std::str::Utf8Error;
 use std::sync::Arc;
 use thiserror::Error;
@@ -148,14 +149,10 @@ pub async fn push_resource(
     )
 }
 
-#[cfg(debug_assertions)]
-const PUBLIC_KEY: &[u8; 450] = include_bytes!("../../certs/staging.pub");
-
-#[cfg(not(debug_assertions))]
-const PUBLIC_KEY: &[u8; 450] = include_bytes!("../../certs/rs-cdn.pub");
-
 fn verify_signature(data: &[u8], signature: &[u8]) -> Result<bool, ErrorStack> {
-    let pkey = PKey::public_key_from_pem(PUBLIC_KEY)?;
+    let pkey_path = std::env::var("PUBLIC_KEY_PATH").unwrap_or("./certs/staging.pub".to_string());
+    let pkey = fs::read_to_string(pkey_path).expect("Unable to load public key");
+    let pkey = PKey::public_key_from_pem(pkey.as_bytes())?;
     let mut verifier = Verifier::new(MessageDigest::md5(), &pkey)?;
 
     verifier.update(data)?;
