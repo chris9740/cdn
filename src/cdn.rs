@@ -27,7 +27,7 @@ impl Cdn<Disconnected> {
         }
     }
 
-    pub fn connect(&self) -> Cdn<Connected> {
+    pub fn connect(self) -> Cdn<Connected> {
         let redis_host = env::var("REDIS_HOST").unwrap_or("redis://127.0.0.1".to_string());
 
         let redis_client = redis::Client::open(redis_host)
@@ -45,8 +45,8 @@ impl Cdn<Disconnected> {
         println!("Established connection to redis");
 
         Cdn {
-            storage: self.storage.clone(),
-            cache: self.cache.clone(),
+            storage: self.storage,
+            cache: self.cache,
             redis: Some(Arc::new(Mutex::new(redis))),
             state: PhantomData::<Connected>
         }
