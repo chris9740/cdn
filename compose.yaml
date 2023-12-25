@@ -25,25 +25,8 @@ services:
     nginx:
         image: nginx
         network_mode: host
-        command: >
-            sh -c "echo '
-            worker_processes auto;
-            events {
-                worker_connections 1024;
-            }
-            http {
-                server {
-                    listen 80;
-                    server_name localhost;
-                    access_log  off;
-
-                    location / {
-                        proxy_set_header Host $$host;
-                        proxy_set_header X-Real-IP $$remote_addr;
-                        proxy_pass http://127.0.0.1:8080/;
-                    }
-                }
-            }' > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+        volumes:
+            - ./nginx.conf:/etc/nginx/nginx.conf
         depends_on:
             cdn:
                 condition: service_started
