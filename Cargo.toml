@@ -3,6 +3,9 @@ name = "rs-cdn"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+firewall = []
+
 [[bin]]
 name = "rs_cdn"
 path = "src/main.rs"

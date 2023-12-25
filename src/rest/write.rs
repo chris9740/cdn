@@ -1,5 +1,5 @@
 use actix_multipart::{Multipart, MultipartError};
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpResponse, HttpRequest};
 use actix_web::{ResponseError, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -11,6 +11,7 @@ use openssl::pkey::PKey;
 use openssl::sign::Verifier;
 use serde::Serialize;
 use std::fs;
+use std::net::IpAddr;
 use std::str::Utf8Error;
 use std::sync::Arc;
 use thiserror::Error;
@@ -40,6 +41,10 @@ pub enum UploadError {
     MissingField(&'static str),
     #[error("Base64 could not be decoded")]
     Base64Error,
+    #[error("Internal server error")]
+    InternalError,
+    #[error("Unauthorized: {0}")]
+    Unauthorized(&'static str)
 }
 
 impl ResponseError for UploadError {
@@ -62,7 +67,10 @@ impl ResponseError for UploadError {
             UploadError::Base64Error => HttpResponse::BadRequest().json(GenericError {
                 error: self.to_string(),
             }),
-            _ => HttpResponse::InternalServerError().finish(),
+            UploadError::Unauthorized(_) => HttpResponse::Unauthorized().json(GenericError {
+                error: self.to_string()
+            }),
+            _ => HttpResponse::InternalServerError().finish()
         }
     }
 }
@@ -74,7 +82,25 @@ pub async fn push_resource(
     path: web::Path<String>,
     mut payload: Multipart,
     data: web::Data<Arc<Cdn<Connected>>>,
+    req: HttpRequest
 ) -> Result<HttpResponse, UploadError> {
+    if cfg!(feature = "firewall") {
+        let whitelist = std::env::var("IP_WHITELIST").unwrap_or_default();
+        let whitelist = whitelist.split(',').collect::<Vec<&str>>();
+
+        let ip_addr: IpAddr = if let Some(addr) = req.headers().get("X-Real-IP") {
+            addr.to_str().map_err(|_| UploadError::InternalError)?.parse().map_err(|_| UploadError::InternalError)?
+        } else if let Some(addr) = req.peer_addr() {
+            addr.ip()
+        } else {
+            return Err(UploadError::InternalError);
+        };
+
+        if !whitelist.contains(&ip_addr.to_string().as_str()) {
+            return Err(UploadError::Unauthorized("unknown remote address"));
+        }
+    }
+
     let id = &path.as_str();
 
     let mut image = Vec::new();
@@ -136,9 +162,7 @@ pub async fn push_resource(
         .map_err(|_| UploadError::Base64Error)?;
 
     if !verify_signature(&image, &decoded_signature)? {
-        return Ok(HttpResponse::Unauthorized().json(GenericError {
-            error: "Invalid signature".to_string(),
-        }));
+        return Err(UploadError::Unauthorized("invalid signature"));
     }
 
     Ok(
