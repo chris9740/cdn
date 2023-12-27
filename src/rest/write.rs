@@ -1,5 +1,7 @@
 use actix_multipart::{Multipart, MultipartError};
-use actix_web::{web, HttpResponse, HttpRequest};
+use actix_web::{web, HttpResponse};
+#[cfg(feature = "firewall")]
+use actix_web::HttpRequest;
 use actix_web::{ResponseError, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -11,7 +13,6 @@ use openssl::pkey::PKey;
 use openssl::sign::Verifier;
 use serde::Serialize;
 use std::fs;
-use std::net::IpAddr;
 use std::str::Utf8Error;
 use std::sync::Arc;
 use thiserror::Error;
@@ -82,18 +83,37 @@ pub async fn push_resource(
     path: web::Path<String>,
     mut payload: Multipart,
     data: web::Data<Arc<Cdn<Connected>>>,
+    #[cfg(feature = "firewall")]
     req: HttpRequest
 ) -> Result<HttpResponse, UploadError> {
-    if cfg!(feature = "firewall") {
+    #[cfg(feature = "firewall")]
+    {
         let whitelist = std::env::var("IP_WHITELIST").unwrap_or_default();
         let whitelist = whitelist.split(',').collect::<Vec<&str>>();
 
-        let ip_addr: IpAddr = if let Some(addr) = req.headers().get("X-Real-IP") {
-            addr.to_str().map_err(|_| UploadError::InternalError)?.parse().map_err(|_| UploadError::InternalError)?
-        } else if let Some(addr) = req.peer_addr() {
-            addr.ip()
-        } else {
-            return Err(UploadError::InternalError);
+        let peer_addr = req.peer_addr().unwrap().ip();
+        let source_addr = req.headers().get("X-Real-IP");
+
+        let ip_addr = match source_addr {
+            Some(source_addr) => {
+                let peer_trusted = peer_addr.is_loopback();
+
+                // This means the request is coming from nginx, or it's in a development
+                // environment.
+                // In either case, it's secure to trust the header.
+                if peer_trusted {
+                    source_addr
+                        .to_str()
+                        .map_err(|_| UploadError::InternalError)?
+                        .parse()
+                        .map_err(|_| UploadError::InternalError)?
+                } else {
+                    peer_addr
+                }
+            },
+            None => {
+                peer_addr
+            }
         };
 
         if !whitelist.contains(&ip_addr.to_string().as_str()) {
@@ -149,8 +169,10 @@ pub async fn push_resource(
     }
 
     if image.len() > FILE_SIZE_LIMIT {
+        let limit = FILE_SIZE_LIMIT / ONE_MB;
+
         return Ok(HttpResponse::BadRequest().json(GenericError {
-            error: "Image is too big".to_string(),
+            error: format!("Image file size exceeds the limit of {limit}MB"),
         }));
     }
 
