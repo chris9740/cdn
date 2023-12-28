@@ -14,6 +14,14 @@ Resources can be found inside `./cdn`.
 
 ## Running the Service
 
+### Prerequisites
+
+ - [Docker Engine](https://docs.docker.com/engine/install/)
+
+ - [Compose V2](https://docs.docker.com/compose/install/linux/)
+
+ - [Cross-rs](https://github.com/cross-rs/cross#installation)
+
 ### Building
 
 Before you can start the application, you need to build it first.
