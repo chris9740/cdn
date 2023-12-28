@@ -176,8 +176,8 @@ pub async fn push_resource(
         }));
     }
 
-    let digest = md5::compute(&image);
-    let hash = format!("{digest:x}");
+    let digest = openssl::sha::sha1(&image);
+    let hash = hex::encode(digest);
 
     let decoded_signature = general_purpose::STANDARD
         .decode(signature)
@@ -199,7 +199,7 @@ fn verify_signature(data: &[u8], signature: &[u8]) -> Result<bool, ErrorStack> {
     let pkey_path = std::env::var("PUBLIC_KEY_PATH").unwrap_or("./certs/staging.pub".to_string());
     let pkey = fs::read_to_string(pkey_path).expect("Unable to load public key");
     let pkey = PKey::public_key_from_pem(pkey.as_bytes())?;
-    let mut verifier = Verifier::new(MessageDigest::md5(), &pkey)?;
+    let mut verifier = Verifier::new(MessageDigest::sha1(), &pkey)?;
 
     verifier.update(data)?;
     verifier.verify(signature)

@@ -57,7 +57,7 @@ fn configure_resource(resource: Resource, cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope(&resource.to_string())
             .route(
-                r"{id}/{image_hash:(a_)?[0-9a-fA-F]{32}}.{ext:(png|gif)}",
+                r"{id}/{image_hash:(a_)?[0-9a-fA-F]{40}}.{ext:(png|gif)}",
                 web::get().to(get_resource),
             )
             .route("{id}", web::post().to(push_resource)),

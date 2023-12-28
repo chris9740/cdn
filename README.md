@@ -3,11 +3,11 @@
 `rs-cdn` is a CDN written in Rust for Harmony.
 
 Resources on `rs-cdn` follow this structured path in the file system:
-`/{category}/{identifier}/{md5hash}.png`
+`/{category}/{identifier}/{sha1hash}.png`
 
 -   `category`: Denotes the group to which the resource belongs, such as `avatars`.
 -   `identifier`: Unique ID corresponding to the resource. For avatars, this is the user id.
--   `md5hash`: The MD5 hash of the image file.
+-   `sha1hash`: The SHA1 hash of the image file.
 
 Each identifier directory is intended to be exclusive, hosting a single resource at any given time.
 Resources can be found inside `./cdn`.
@@ -74,7 +74,7 @@ curl -X POST http://localhost:8080/avatars/1234567890 \
 After a successful upload, the resource is accessible through a URL structured as follows:
 
 ```
-http://localhost:8080/{category}/{user_id}/{md5hash}.png
+http://localhost:8080/{category}/{user_id}/{sha1hash}.png
 ```
 
 ### Example:

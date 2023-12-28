@@ -20,8 +20,8 @@ anyhow = "1.0.75"
 base64 = "0.21.5"
 colored = "2.1.0"
 futures-util = "0.3.28"
+hex = "0.4.3"
 image = {version = "0.24.7"}
-md5 = "0.7.0"
 openssl = "0.10.57"
 openssl-sys = { version = "0.9.97", features = ["vendored"] }
 redis = "0.23.3"

@@ -18,7 +18,7 @@ if [ ! -f "$PRIVATE_KEY_PATH" ]; then
     exit 1
 fi
 
-SIGNATURE=$(openssl dgst -md5 -sign "$PRIVATE_KEY_PATH" "$IMAGE_PATH" | base64 -w0)
+SIGNATURE=$(openssl dgst -sha1 -sign "$PRIVATE_KEY_PATH" "$IMAGE_PATH" | base64 -w0)
 
 if [ ! -z "$SIGNATURE" ]; then
     echo $SIGNATURE
