@@ -1,7 +1,9 @@
 #[macro_export]
 macro_rules! error {
     ($($message:tt)*) => ({
-        eprintln!($($message)*);
+        use colored::Colorize;
+        use $crate::colors::RED;
+        eprintln!("{} {}", "[ERROR]".truecolor(RED.0, RED.1, RED.2), format_args!($($message)*));
         std::process::exit(1);
     })
 }
@@ -16,4 +18,12 @@ macro_rules! unwrap_or_return {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! info {
+    ($($message:tt)*) => ({
+        use colored::Colorize;
+        println!("{} {}", "[INFO]".blue(), format_args!($($message)*));
+    })
 }

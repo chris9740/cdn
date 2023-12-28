@@ -2,7 +2,7 @@ use std::{env, sync::{Arc, Mutex}, marker::PhantomData};
 
 use redis::Connection;
 
-use crate::{cache::Cache, storage::Storage, error};
+use crate::{cache::Cache, storage::Storage, error, info};
 
 #[derive(Clone)]
 pub struct Disconnected;
@@ -42,7 +42,7 @@ impl Cdn<Disconnected> {
                 error!("Could not connect to redis: timeout");
             });
 
-        println!("Established connection to redis");
+        info!("Successfully connected to redis");
 
         Cdn {
             storage: self.storage,
