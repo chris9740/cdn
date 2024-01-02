@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
+use actix_cors::Cors;
 use rs_cdn::cache::Cache;
 use rs_cdn::storage::Storage;
 use rs_cdn::colors::{RED, GREEN, MAGENTA};
@@ -55,7 +56,10 @@ async fn main() {
     );
 
     HttpServer::new(move || {
+        let cors = Cors::default().allow_any_origin();
+
         App::new()
+            .wrap(cors)
             .app_data(web::Data::new(cdn.clone()))
             .configure(rest::configure_routes)
     })
