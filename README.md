@@ -81,6 +81,6 @@ http://localhost:8080/{category}/{user_id}/{sha1hash}.png
 
 For the uploaded `orange.jpg` image with the identifier `1234567890`:
 
-[http://localhost:8080/avatars/1234567890/c4c3fc411830d858e827ecb6bf8476a7.png](http://localhost:8080/avatars/1234567890/c4c3fc411830d858e827ecb6bf8476a7.png)
+[http://localhost:8080/avatars/1234567890/b4d3499823b249df78507443a2fa6ec90933e3c4.png](http://localhost:8080/avatars/1234567890/b4d3499823b249df78507443a2fa6ec90933e3c4.png)
 
 Navigating to the above link in a web browser will display the uploaded image.
