@@ -1,0 +1,2 @@
+[firewall]
+trusted_sources = []

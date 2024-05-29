@@ -1,7 +1,6 @@
 use actix_multipart::{Multipart, MultipartError};
-use actix_web::{web, HttpResponse};
-#[cfg(feature = "firewall")]
 use actix_web::HttpRequest;
+use actix_web::{web, HttpResponse};
 use actix_web::{ResponseError, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -45,7 +44,7 @@ pub enum UploadError {
     #[error("Internal server error")]
     InternalError,
     #[error("Unauthorized. {0}")]
-    Unauthorized(&'static str)
+    Unauthorized(&'static str),
 }
 
 impl ResponseError for UploadError {
@@ -69,9 +68,9 @@ impl ResponseError for UploadError {
                 error: self.to_string(),
             }),
             UploadError::Unauthorized(_) => HttpResponse::Unauthorized().json(GenericError {
-                error: self.to_string()
+                error: self.to_string(),
             }),
-            _ => HttpResponse::InternalServerError().finish()
+            _ => HttpResponse::InternalServerError().finish(),
         }
     }
 }
@@ -83,13 +82,12 @@ pub async fn push_resource(
     path: web::Path<String>,
     mut payload: Multipart,
     data: web::Data<Arc<Cdn<Connected>>>,
-    #[cfg(feature = "firewall")]
-    req: HttpRequest
+    req: HttpRequest,
 ) -> Result<HttpResponse, UploadError> {
-    #[cfg(feature = "firewall")]
-    {
-        let whitelist = std::env::var("IP_WHITELIST").unwrap_or_default();
-        let whitelist = whitelist.split(',').collect::<Vec<&str>>();
+    let firewall = &data.config.firewall;
+
+    if firewall.is_enabled() {
+        let trusted_sources = &firewall.trusted_sources;
 
         let peer_addr = req.peer_addr().unwrap().ip();
         let real_ip_header_untrusted = req.headers().get("X-Real-IP");
@@ -110,13 +108,11 @@ pub async fn push_resource(
                 } else {
                     peer_addr
                 }
-            },
-            None => {
-                peer_addr
             }
+            None => peer_addr,
         };
 
-        if !whitelist.contains(&ip_addr.to_string().as_str()) {
+        if !trusted_sources.contains(&ip_addr) {
             return Err(UploadError::Unauthorized("Unknown remote address"));
         }
     }

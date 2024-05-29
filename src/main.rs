@@ -1,24 +1,33 @@
 #[macro_use]
 extern crate rs_cdn;
 
+use anyhow::Result;
 use colored::Colorize;
+use rs_cdn::config;
 use rs_cdn::{cdn::Cdn, rest};
 use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
+use actix_web::{web, App, HttpServer};
 use rs_cdn::cache::Cache;
+use rs_cdn::colors::{GREEN, MAGENTA, RED};
 use rs_cdn::storage::Storage;
-use rs_cdn::colors::{RED, GREEN, MAGENTA};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
+    let address: SocketAddr = "0.0.0.0:8080".parse().unwrap();
+    let config = match config::get_config() {
+        Ok(config) => config,
+        Err(err) => error!("{err}"),
+    };
+
     let version = env!("CARGO_PKG_VERSION");
     let version = format!("v{version}");
 
-    println!(r"
+    println!(
+        r"
                rs-cdn {version}
      {}     {}
     {}
@@ -29,20 +38,13 @@ async fn main() {
         "https://github.com/chris9740/cdn".underline(),
         "( o.o )".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2),
         "> ^ <".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2),
-
-        if cfg!(feature = "firewall") {
+        if config.firewall.is_enabled() {
             "enabled".truecolor(GREEN.0, GREEN.1, GREEN.2)
         } else {
             "disabled".truecolor(RED.0, RED.1, RED.2)
         }
     );
 
-    let storage_path = env::var("CDN_STORAGE_PATH").unwrap_or(String::from("./uploads"));
-    let storage = Storage::new(&storage_path);
-    let cache = Cache::new();
-    let cdn = Arc::new(Cdn::new(storage, cache).connect());
-
-    let address: SocketAddr = "0.0.0.0:8080".parse().unwrap();
     let debug_mode = if cfg!(debug_assertions) {
         "enabled"
     } else {
@@ -54,6 +56,25 @@ async fn main() {
         address,
         format!("(debug mode {})", debug_mode).truecolor(140, 140, 140)
     );
+
+    if config.firewall.is_enabled() {
+        let trusted_sources = &config.firewall.trusted_sources;
+
+        info!(
+            "Trusted sources ({}): [{}]",
+            trusted_sources.len(),
+            trusted_sources
+                .iter()
+                .map(|src| src.to_string().bold().to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        );
+    }
+
+    let storage_path = config.storage_path.clone().unwrap_or("./uploads".to_string());
+    let storage = Storage::new(&storage_path);
+    let cache = Cache::new();
+    let cdn = Arc::new(Cdn::new(storage, cache, config).connect());
 
     HttpServer::new(move || {
         let cors = Cors::default().allow_any_origin();
@@ -68,4 +89,6 @@ async fn main() {
     .run()
     .await
     .expect("Failed to run HttpServer");
+
+    Ok(())
 }

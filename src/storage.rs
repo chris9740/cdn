@@ -83,6 +83,7 @@ impl Storage {
         let dest_file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(base_path)?;
 
         let png_options =
