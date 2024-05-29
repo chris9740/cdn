@@ -7,8 +7,9 @@ use std::{fmt::Display, sync::Arc};
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
+    cdn::Connected,
+    rest::{read::get_resource, write::push_resource},
     unwrap_or_return,
-    rest::{read::get_resource, write::push_resource}, cdn::Connected,
 };
 
 use super::Cdn;
@@ -84,7 +85,7 @@ async fn get_health(data: web::Data<Arc<Cdn<Connected>>>) -> Result<HttpResponse
         ErrorInternalServerError("Connection error with redis")
     );
 
-    Ok(match data.cache.health(&mut con) {
+    Ok(match data.cache.get_redis_health(&mut con) {
         Ok(health) => HttpResponse::Ok().json(health),
         Err(why) => HttpResponse::InternalServerError().json(GenericError {
             error: why.to_string(),

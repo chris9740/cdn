@@ -71,7 +71,11 @@ async fn main() -> Result<()> {
         );
     }
 
-    let storage_path = config.storage_path.clone().unwrap_or("./uploads".to_string());
+    let storage_path = config
+        .storage_path
+        .clone()
+        .unwrap_or("./uploads".to_string());
+
     let storage = Storage::new(&storage_path);
     let cache = Cache::new();
     let cdn = Arc::new(Cdn::new(storage, cache, config).connect());

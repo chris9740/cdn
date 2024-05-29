@@ -39,7 +39,7 @@ impl Cache {
         Ok(())
     }
 
-    pub fn health(&self, mut con: &mut Connection) -> Result<Health> {
+    pub fn get_redis_health(&self, mut con: &mut Connection) -> Result<Health> {
         let (info, keys): (String, u32) =
             redis::pipe().cmd("INFO").cmd("DBSIZE").query(&mut con)?;
 

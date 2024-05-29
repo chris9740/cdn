@@ -10,7 +10,10 @@ use actix_web::{
 use image::{imageops::FilterType, io::Reader, ImageFormat};
 use serde::Deserialize;
 
-use crate::{cdn::{Cdn, Connected}, unwrap_or_return};
+use crate::{
+    cdn::{Cdn, Connected},
+    unwrap_or_return,
+};
 
 use super::{GenericError, Resource};
 
@@ -42,7 +45,9 @@ pub async fn get_resource(
     }
 
     if size > MAX_SIZE {
-        return Err(ErrorBadRequest(format!("Size cannot be larger than {MAX_SIZE}")));
+        return Err(ErrorBadRequest(format!(
+            "Size cannot be larger than {MAX_SIZE}"
+        )));
     }
 
     if let Ok(resource) = resource_type {
