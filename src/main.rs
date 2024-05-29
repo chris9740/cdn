@@ -61,11 +61,11 @@ async fn main() -> Result<()> {
         let trusted_sources = &config.firewall.trusted_sources;
 
         info!(
-            "Trusted sources ({}): [{}]",
+            "Trusted sources ({}): {{ {} }}",
             trusted_sources.len(),
             trusted_sources
                 .iter()
-                .map(|src| src.to_string().bold().to_string())
+                .map(|src| src.to_string())
                 .collect::<Vec<String>>()
                 .join(", ")
         );

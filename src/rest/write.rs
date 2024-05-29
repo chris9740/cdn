@@ -165,10 +165,10 @@ pub async fn push_resource(
     }
 
     if image.len() > FILE_SIZE_LIMIT {
-        let limit = FILE_SIZE_LIMIT / ONE_MB;
+        let limit_mb = FILE_SIZE_LIMIT / ONE_MB;
 
         return Ok(HttpResponse::BadRequest().json(GenericError {
-            error: format!("Image file size exceeds the limit of {limit}MB"),
+            error: format!("Image file size exceeds the limit of {limit_mb}MB"),
         }));
     }
 
