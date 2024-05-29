@@ -37,7 +37,7 @@ async fn main() {
         }
     );
 
-    let storage_path = env::var("CDN_STORAGE_PATH").unwrap_or(String::from("./cdn"));
+    let storage_path = env::var("CDN_STORAGE_PATH").unwrap_or(String::from("./uploads"));
     let storage = Storage::new(&storage_path);
     let cache = Cache::new();
     let cdn = Arc::new(Cdn::new(storage, cache).connect());
@@ -64,7 +64,7 @@ async fn main() {
             .configure(rest::configure_routes)
     })
     .bind(address)
-    .unwrap_or_else(|why| error!("Can't bind to {:?}: {why}", address))
+    .unwrap_or_else(|why| error!("Can't bind to {:?}: {}", address, why))
     .run()
     .await
     .expect("Failed to run HttpServer");

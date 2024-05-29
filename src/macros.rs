@@ -13,7 +13,11 @@ macro_rules! unwrap_or_return {
     ($result:expr, $error:expr) => {
         match $result {
             Ok(val) => val,
-            Err(_) => {
+            Err(err) => {
+                use $crate::info;
+
+                info!("Caught error: {}", err.to_string());
+
                 return Err($error);
             }
         }

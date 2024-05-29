@@ -10,7 +10,7 @@ Resources on `rs-cdn` follow this structured path in the file system:
 -   `sha1hash`: The SHA1 hash of the image file.
 
 Each identifier directory is intended to be exclusive, hosting a single resource at any given time.
-Resources can be found inside `./cdn`.
+Resources can be found inside `./uploads` during development.
 
 ## Running the Service
 

@@ -44,7 +44,7 @@ pub enum UploadError {
     Base64Error,
     #[error("Internal server error")]
     InternalError,
-    #[error("Unauthorized: {0}")]
+    #[error("Unauthorized. {0}")]
     Unauthorized(&'static str)
 }
 
@@ -92,17 +92,17 @@ pub async fn push_resource(
         let whitelist = whitelist.split(',').collect::<Vec<&str>>();
 
         let peer_addr = req.peer_addr().unwrap().ip();
-        let source_addr = req.headers().get("X-Real-IP");
+        let real_ip_header_untrusted = req.headers().get("X-Real-IP");
 
-        let ip_addr = match source_addr {
-            Some(source_addr) => {
-                let peer_trusted = peer_addr.is_loopback();
-
+        let ip_addr = match real_ip_header_untrusted {
+            Some(real_ip_header) => {
                 // This means the request is coming from nginx, or it's in a development
                 // environment.
                 // In either case, it's secure to trust the header.
+                let peer_trusted = peer_addr.is_loopback();
+
                 if peer_trusted {
-                    source_addr
+                    real_ip_header
                         .to_str()
                         .map_err(|_| UploadError::InternalError)?
                         .parse()
@@ -117,7 +117,7 @@ pub async fn push_resource(
         };
 
         if !whitelist.contains(&ip_addr.to_string().as_str()) {
-            return Err(UploadError::Unauthorized("unknown remote address"));
+            return Err(UploadError::Unauthorized("Unknown remote address"));
         }
     }
 
@@ -184,7 +184,7 @@ pub async fn push_resource(
         .map_err(|_| UploadError::Base64Error)?;
 
     if !verify_signature(&image, &decoded_signature)? {
-        return Err(UploadError::Unauthorized("invalid signature"));
+        return Err(UploadError::Unauthorized("Invalid signature"));
     }
 
     Ok(
