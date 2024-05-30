@@ -1,3 +1,4 @@
 target/
 uploads/
 dump.rdb
+log/

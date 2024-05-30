@@ -1,2 +1,3 @@
 [firewall]
-trusted_sources = []
+enabled = false
+trusted_sources = ["127.0.0.1"]

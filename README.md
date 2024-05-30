@@ -32,11 +32,11 @@ You can run `make build` to create a debug build, and `make release` to create a
 
 We use Compose v2 for this project. As such, we use `docker compose` instead of `docker-compose`.
 
-#### > Debug mode
+#### Debug mode:
 
 To start the application in development mode, run `make build && docker compose up`.
 
-#### > Release mode
+#### Release mode:
 
 You can also run in release mode, using `make release && docker compose -f compose.yaml -f compose.release.yaml up`.
 
@@ -54,7 +54,7 @@ To generate a signature for development, use the provided script:
 ./create_signature.sh <path_to_image>
 ```
 
-Incorporate the output directly into the `signature` field when making a PUOS request.
+Incorporate the output directly into the `signature` field when making a POST request.
 
 ## Uploading Resources
 
@@ -74,7 +74,7 @@ curl -X POST http://localhost:8080/avatars/1234567890 \
 After a successful upload, the resource is accessible through a URL structured as follows:
 
 ```
-http://localhost:8080/{category}/{user_id}/{sha1hash}.png
+http://localhost:8080/{category}/{id}/{sha1hash}.png
 ```
 
 ### Example:

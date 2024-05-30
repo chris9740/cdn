@@ -3,7 +3,7 @@ extern crate rs_cdn;
 
 use anyhow::Result;
 use colored::Colorize;
-use rs_cdn::config;
+use rs_cdn::config::{self, CdnConfig};
 use rs_cdn::{cdn::Cdn, rest};
 use std::env;
 use std::net::SocketAddr;
@@ -17,33 +17,15 @@ use rs_cdn::storage::Storage;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
+
     let address: SocketAddr = "0.0.0.0:8080".parse().unwrap();
     let config = match config::get_config() {
         Ok(config) => config,
         Err(err) => error!("{err}"),
     };
 
-    let version = env!("CARGO_PKG_VERSION");
-    let version = format!("v{version}");
-
-    println!(
-        r"
-               rs-cdn {version}
-     {}     {}
-    {}
-     {}     Optional features:
-                » firewall ({})
-    ",
-        r"/\_/\".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2),
-        "https://github.com/chris9740/cdn".underline(),
-        "( o.o )".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2),
-        "> ^ <".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2),
-        if config.firewall.is_enabled() {
-            "enabled".truecolor(GREEN.0, GREEN.1, GREEN.2)
-        } else {
-            "disabled".truecolor(RED.0, RED.1, RED.2)
-        }
-    );
+    print_banner(&config);
 
     let debug_mode = if cfg!(debug_assertions) {
         "enabled"
@@ -57,11 +39,11 @@ async fn main() -> Result<()> {
         format!("(debug mode {})", debug_mode).truecolor(140, 140, 140)
     );
 
-    if config.firewall.is_enabled() {
+    if config.firewall.enabled {
         let trusted_sources = &config.firewall.trusted_sources;
 
         info!(
-            "Trusted sources ({}): {{ {} }}",
+            "Firewall: Trusted sources ({}): {{ {} }}",
             trusted_sources.len(),
             trusted_sources
                 .iter()
@@ -95,4 +77,29 @@ async fn main() -> Result<()> {
     .expect("Failed to run HttpServer");
 
     Ok(())
+}
+
+fn print_banner(config: &CdnConfig) {
+    let version = env!("CARGO_PKG_VERSION");
+    let version = format!("v{version}");
+
+    let ears = r"/\_/\".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2);
+    let face = "( o.o )".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2);
+    let whisk = "> ^ <".truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2);
+
+    println!(
+        r"
+               rs-cdn {version}
+     {ears}     {}
+    {face}
+     {whisk}     Configuration:
+                - firewall: {}
+    ",
+        "https://github.com/chris9740/cdn".underline(),
+        if config.firewall.enabled {
+            "enabled".truecolor(GREEN.0, GREEN.1, GREEN.2)
+        } else {
+            "disabled".truecolor(RED.0, RED.1, RED.2)
+        }
+    );
 }

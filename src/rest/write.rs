@@ -84,9 +84,10 @@ pub async fn push_resource(
     data: web::Data<Arc<Cdn<Connected>>>,
     req: HttpRequest,
 ) -> Result<HttpResponse, UploadError> {
+    let id = &path.as_str();
     let firewall = &data.config.firewall;
 
-    if firewall.is_enabled() {
+    if firewall.enabled {
         let trusted_sources = &firewall.trusted_sources;
 
         let peer_addr = req.peer_addr().unwrap().ip();
@@ -113,11 +114,10 @@ pub async fn push_resource(
         };
 
         if !trusted_sources.contains(&ip_addr) {
+            log::warn!("Got request from unknown remote address: {ip_addr} (hash: {id})");
             return Err(UploadError::Unauthorized("Unknown remote address"));
         }
     }
-
-    let id = &path.as_str();
 
     let mut image = Vec::new();
     let mut signature = String::new();
@@ -176,10 +176,11 @@ pub async fn push_resource(
     let hash = hex::encode(digest);
 
     let decoded_signature = general_purpose::STANDARD
-        .decode(signature)
+        .decode(&signature)
         .map_err(|_| UploadError::Base64Error)?;
 
     if !verify_signature(&image, &decoded_signature)? {
+        log::warn!("Got invalid signature: hash of uploaded image: {hash}, signature: {signature}");
         return Err(UploadError::Unauthorized("Invalid signature"));
     }
 

@@ -11,12 +11,15 @@ use crate::error;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct FirewallConfig {
+    pub enabled: bool,
     pub trusted_sources: Vec<IpAddr>,
 }
 
 impl FirewallConfig {
-    pub fn is_enabled(&self) -> bool {
-        !self.trusted_sources.is_empty()
+    fn validate(&self) {
+        if self.enabled && self.trusted_sources.is_empty() {
+            error!("Trusted sources cannot be empty if firewall is enabled.");
+        }
     }
 }
 
@@ -28,7 +31,9 @@ pub struct CdnConfig {
 
 pub fn get_config() -> Result<CdnConfig> {
     let config_path = config_location().join("config.toml");
-    Ok(confy::load_path::<CdnConfig>(config_path)?)
+    let config: CdnConfig = confy::load_path(config_path)?;
+    config.firewall.validate();
+    Ok(config)
 }
 
 pub fn config_location() -> PathBuf {
