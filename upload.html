@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+
+        <script defer>
+            document.addEventListener("DOMContentLoaded", function () {
+                const form = document.querySelector("form");
+                const input = document.querySelector("input[name=file]");
+                const signature = document.querySelector(
+                    "textarea[name=signature]"
+                );
+                const button = document.querySelector("button");
+
+                form.onsubmit = function (event) {
+                    event.preventDefault();
+
+                    const formData = new FormData();
+                    formData.append("image", input.files[0]);
+                    formData.append("signature", signature.value);
+
+                    fetch("http://localhost/avatars/19750963334086656", {
+                        method: "POST",
+                        body: formData,
+                    }).then(async (response) => {
+                        const result = document.querySelector("#result");
+
+                        if (!response.ok) {
+                            result.innerHTML = "An error occurred";
+                            return;
+                        }
+
+                        const data = await response.json();
+
+                        const img = document.createElement("img");
+                        const filename = data.filename;
+
+                        const href = `http://localhost/avatars/19750963334086656/${filename}`;
+
+                        img.src = href;
+                        img.alt = filename;
+
+                        result.innerHTML = "";
+                        result.appendChild(img);
+
+                        const openButton = document.createElement("button");
+                        openButton.textContent = "Open in new tab";
+                        openButton.onclick = function () {
+                            window.open(href);
+                        };
+
+                        const removeButton = document.createElement("button");
+                        removeButton.textContent = "Remove";
+                        removeButton.onclick = function () {
+                            result.innerHTML = "";
+                        }
+
+                        result.appendChild(openButton);
+                        result.appendChild(removeButton);
+                    });
+                };
+            });
+        </script>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family: sans-serif;
+                background-color: #242326;
+                color: #ffffff;
+            }
+
+            main {
+                display: flex;
+                flex-direction: column;
+                width: 22em;
+                margin: 16em auto 0 auto;
+            }
+
+            main,
+            form {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            input, textarea {
+                padding: 0.5rem;
+                border: 1px solid #ccc;
+                background-color: #242326;
+                color: #ffffff;
+                border-radius: 0.25rem;
+            }
+
+            button {
+                padding: 0.5rem;
+                border: none;
+                border-radius: 0.25rem;
+                background-color: #007bff;
+                color: white;
+                cursor: pointer;
+            }
+
+            #result img {
+                cursor: pointer;
+            }
+
+            #result button {
+                margin-top: 1rem;
+                margin-right: 0.5rem;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>Upload</h1>
+            <form>
+                <input type="file" name="file" accept="image/*" />
+                <textarea type="text" name="signature" placeholder="Signature"></textarea>
+                <button type="submit">Upload</button>
+            </form>
+            <div id="result"></div>
+        </main>
+    </body>
+</html>

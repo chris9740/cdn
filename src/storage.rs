@@ -2,9 +2,10 @@ use std::fs::OpenOptions;
 use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
-use image::codecs::png::{CompressionType, FilterType, PngEncoder};
-use image::io::Reader;
-use image::ImageFormat;
+use image::codecs::gif::{GifEncoder, Repeat};
+use image::codecs::png::PngEncoder;
+use image::{codecs::gif::GifDecoder, io::Reader, DynamicImage, ImageOutputFormat::Png};
+use image::{AnimationDecoder, Frame, GenericImageView, ImageEncoder, ImageFormat, RgbaImage};
 use std::io::Cursor;
 
 use crate::rest::Resource;
@@ -45,54 +46,103 @@ impl Storage {
         hash: &str,
     ) -> Result<String> {
         let reader = Reader::new(Cursor::new(&image_data)).with_guessed_format()?;
-
         let format = reader
             .format()
             .ok_or_else(|| anyhow!("Invalid file format"))?;
 
-        match format {
-            ImageFormat::Gif | ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::WebP => (),
-            _ => return Err(anyhow!("Unsupported image format")),
-        };
-
-        let is_animated = format.eq(&ImageFormat::Gif);
-
-        let filename = if !is_animated {
-            format!("{hash}.png")
-        } else {
-            format!("a_{hash}.png")
-        };
-
         let base_path = self.path(&resource, id);
-
-        let image = reader.decode()?;
-        let default_image_size = 1024;
-
-        let smallest_dimension = std::cmp::min(image.width(), image.height());
-        let image_size = std::cmp::min(smallest_dimension, default_image_size);
-        let image = image.crop_imm(0, 0, image_size, image_size);
-
         fs::create_dir_all(&base_path)?;
 
-        if resource.singleton() {
-            for entry in base_path.read_dir()? {
-                fs::remove_file(entry?.path())?;
+        match format {
+            ImageFormat::Gif => {
+                let decoder = GifDecoder::new(Cursor::new(&image_data))?;
+                let frames = decoder.into_frames();
+                let mut cropped_frames = Vec::new();
+
+                let mut first_frame_png: Option<RgbaImage> = None;
+
+                for frame in frames.collect_frames()? {
+                    let buffer = frame.clone().into_buffer();
+                    let dynamic_image = DynamicImage::ImageRgba8(buffer);
+                    let cropped_image = crop_to_square(&dynamic_image);
+
+                    if first_frame_png.is_none() {
+                        first_frame_png = Some(cropped_image.to_rgba8());
+                    }
+
+                    cropped_frames.push(Frame::from_parts(
+                        cropped_image.to_rgba8(),
+                        0,
+                        0,
+                        frame.delay(),
+                    ));
+                }
+
+                let png_filename = format!("a_{hash}.png");
+                let gif_filename = format!("a_{hash}.gif");
+
+                let png_path = base_path.join(&png_filename);
+                let gif_path = base_path.join(&gif_filename);
+
+                // We want to show a still image until hover
+                if let Some(first_frame) = first_frame_png {
+                    let mut png_file = OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&png_path)?;
+
+                    PngEncoder::new(&mut png_file).write_image(
+                        first_frame.as_raw(),
+                        first_frame.width(),
+                        first_frame.height(),
+                        image::ColorType::Rgba8,
+                    )?;
+                }
+
+                let gif_file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&gif_path)?;
+
+                println!("Using speed 30");
+                let mut gif_encoder = GifEncoder::new_with_speed(gif_file, 30);
+                gif_encoder.set_repeat(Repeat::Infinite)?;
+
+                println!("Total frames: {}", cropped_frames.len());
+
+                gif_encoder.encode_frames(cropped_frames)?;
+
+                Ok(png_filename)
             }
+            ImageFormat::Png | ImageFormat::Jpeg | ImageFormat::WebP => {
+                let filename = format!("{hash}.png");
+                let path = base_path.join(&filename);
+                let image = reader.decode()?;
+                let cropped_image = crop_to_square(&image);
+
+                let mut dest_file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(path)?;
+                cropped_image.write_to(&mut dest_file, Png)?;
+
+                Ok(filename)
+            }
+            _ => Err(anyhow!("Unsupported image format")),
         }
-
-        let base_path = base_path.join(&filename);
-
-        let dest_file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(base_path)?;
-
-        let png_options =
-            PngEncoder::new_with_quality(dest_file, CompressionType::Fast, FilterType::NoFilter);
-
-        image.write_with_encoder(png_options)?;
-
-        Ok(filename)
     }
+}
+
+fn crop_to_square(image: &DynamicImage) -> DynamicImage {
+    let (width, height) = image.dimensions();
+
+    let crop_size = std::cmp::min(width, height);
+
+    let top = (height - crop_size) / 2;
+    let left = (width - crop_size) / 2;
+
+    image.crop_imm(left, top, crop_size, crop_size)
 }

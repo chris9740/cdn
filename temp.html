@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+        <script defer>
+            document.addEventListener("DOMContentLoaded", function () {
+                setInterval(function () {
+                    const imageElement = document.createElement("img");
+                    const avatarId = "19750963334086656";
+                    const avatarHash = "a_e65806f8735def11509598abf56a2d2a96f12812";
+                    const entropy = Math.random().toString(36).substring(7);
+
+                    const src = `http://localhost/avatars/${avatarId}/${avatarHash}.png?e=${entropy}`;
+                    imageElement.src = src;
+
+                    imageElement.onmouseenter = function () {
+                        const pngRegex = /.*\.png\?e=.*/;
+                        if (!avatarHash.startsWith("a_")) return;
+                        if (!pngRegex.test(imageElement.src)) return;
+                        const src = `http://localhost/avatars/${avatarId}/${avatarHash}.gif?e=${entropy}`;
+                        imageElement.src = src;
+                    }
+
+                    imageElement.onmouseleave = function () {
+                        const gifRegex = /.*\.gif\?e=.*/;
+                        if (!gifRegex.test(imageElement.src)) return;
+                        const src = `http://localhost/avatars/${avatarId}/${avatarHash}.png?e=${entropy}`;
+                        imageElement.src = src;
+                    }
+
+                    imageElement.onerror = function () {
+                        // set styles to show that the image failed to load
+                        imageElement.style.border = "1px solid red";
+                        imageElement.style.backgroundColor = "rgba(255, 0, 0, 0.1)";
+                    }
+
+                    imageElement.onload = function () {
+                        // set styles to show that the image loaded successfully
+                        imageElement.style.border = "1px solid green";
+                        imageElement.style.backgroundColor = "rgba(0, 255, 0, 0.1)";
+                    }
+
+                    document.body.appendChild(imageElement);
+                }, 2000);
+
+                const images = document.querySelectorAll("img");
+
+                images.forEach((img, index) => {
+                    const src = img.src;
+                    const url = new URL(src);
+                    const filename = url.pathname.split("/").pop();
+
+                    if (filename.startsWith("a_")) {
+                        const gifSrc = src.replace(".png", ".gif");
+
+                        img.addEventListener("mouseenter", function () {
+                            loadGif(img, gifSrc, src, index);
+                        });
+
+                        img.addEventListener("mouseleave", function () {
+                            loadPng(img, src, index);
+                        });
+                    }
+                });
+
+                function loadGif(img, gifSrc, pngSrc, index) {
+                    const gifImg = new Image();
+                    gifImg.src = gifSrc || `${gifSrc}&cb=${new Date().getTime()}`;
+
+                    gifImg.onload = function () {
+                        console.log(
+                            `GIF ${index} loaded successfully:`,
+                            gifSrc
+                        );
+                        img.src = gifSrc;
+                    };
+
+                    gifImg.onerror = function () {
+                        console.error(`Failed to load GIF ${index}:`, gifSrc);
+                        img.src = pngSrc; // Fallback to PNG if GIF fails
+                    };
+                }
+
+                function loadPng(img, pngSrc, index) {
+                    const pngImg = new Image();
+                    pngImg.src = pngSrc || `${pngSrc}&cb=${new Date().getTime()}`;
+
+                    pngImg.onload = function () {
+                        console.log(
+                            `PNG ${index} loaded successfully:`,
+                            pngSrc
+                        );
+                        img.src = pngSrc;
+                    };
+
+                    pngImg.onerror = function () {
+                        console.error(`Failed to load PNG ${index}:`, pngSrc);
+                    };
+                }
+            });
+        </script>
+    </head>
+    <body>
+    <style>
+        img {
+            width: 256px;
+            height: 256px;
+        }
+    </style>
+    </body>
+</html>

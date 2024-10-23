@@ -8,6 +8,7 @@ services:
             - REDIS_HOST=redis://redis
         volumes:
             - ./:/usr/src/rs-cdn
+            - ./log:/usr/src/rs-cdn/log
         command: ./target/x86_64-unknown-linux-gnu/debug/rs_cdn
         networks:
             - cdn

@@ -187,7 +187,10 @@ pub async fn push_resource(
     Ok(
         match data.storage.put(Resource::Avatars, id, image, &hash) {
             Ok(filename) => HttpResponse::Created().json(UploadResponse { filename }),
-            Err(why) => HttpResponse::InternalServerError().json(why.to_string()),
+            Err(why) => {
+                println!("{why}");
+                HttpResponse::InternalServerError().json(why.to_string())
+            }
         },
     )
 }

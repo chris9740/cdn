@@ -20,6 +20,6 @@ fi
 
 SIGNATURE=$(openssl dgst -sha1 -sign "$PRIVATE_KEY_PATH" "$IMAGE_PATH" | base64 -w0)
 
-if [ ! -z "$SIGNATURE" ]; then
-    echo $SIGNATURE
+if [ -z "$SIGNATURE" ]; then
+    echo "$SIGNATURE"
 fi
