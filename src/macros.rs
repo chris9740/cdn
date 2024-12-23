@@ -5,7 +5,6 @@ pub fn strip_colors(input: &str) -> String {
     re.replace_all(input, "").to_string()
 }
 
-
 #[macro_export]
 macro_rules! error {
     ($($message:tt)*) => ({
@@ -42,5 +41,38 @@ macro_rules! unwrap_or_return {
                 return Err($error);
             }
         }
+    };
+}
+
+#[macro_export]
+macro_rules! show_welcome_message {
+    (
+        $config:expr
+    ) => {
+        pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+        pub const EARS: &str = r"/\_/\";
+        pub const FACE: &str = "( o.o )";
+        pub const WHISK: &str = "> ^ <";
+        pub const GITHUB_URL: &str = "https://github.com/chris9740/cdn";
+
+        let ears = EARS.truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2);
+        let face = FACE.truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2);
+        let whisk = WHISK.truecolor(MAGENTA.0, MAGENTA.1, MAGENTA.2);
+
+        println!(
+            r"
+               rs-cdn {VERSION}
+     {ears}     {}
+    {face}
+     {whisk}     Configuration:
+                    - firewall: {}
+        ",
+            GITHUB_URL.underline(),
+            if $config.firewall.enabled {
+                "enabled".truecolor(GREEN.0, GREEN.1, GREEN.2)
+            } else {
+                "disabled".truecolor(RED.0, RED.1, RED.2)
+            }
+        );
     };
 }

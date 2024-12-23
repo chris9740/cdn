@@ -78,11 +78,23 @@ impl Storage {
                     ));
                 }
 
+                if resource.singleton() {
+                    for entry in fs::read_dir(&base_path)? {
+                        let entry = entry?;
+                        let path = entry.path();
+
+                        if path.is_file() {
+                            fs::remove_file(path)
+                                .map_err(|err| anyhow!("Failed to remove file: {err}"))?;
+                        }
+                    }
+                }
+
                 let png_filename = format!("a_{hash}.png");
                 let gif_filename = format!("a_{hash}.gif");
 
                 let png_path = base_path.join(&png_filename);
-                let gif_path = base_path.join(&gif_filename);
+                let gif_path = base_path.join(gif_filename);
 
                 // We want to show a still image until hover
                 if let Some(first_frame) = first_frame_png {
@@ -90,7 +102,7 @@ impl Storage {
                         .write(true)
                         .create(true)
                         .truncate(true)
-                        .open(&png_path)?;
+                        .open(png_path)?;
 
                     PngEncoder::new(&mut png_file).write_image(
                         first_frame.as_raw(),
@@ -104,7 +116,7 @@ impl Storage {
                     .write(true)
                     .create(true)
                     .truncate(true)
-                    .open(&gif_path)?;
+                    .open(gif_path)?;
 
                 println!("Using speed 30");
                 let mut gif_encoder = GifEncoder::new_with_speed(gif_file, 30);
@@ -122,12 +134,27 @@ impl Storage {
                 let image = reader.decode()?;
                 let cropped_image = crop_to_square(&image);
 
+                if resource.singleton() {
+                    for entry in fs::read_dir(&base_path)? {
+                        let entry = entry?;
+                        let path = entry.path();
+
+                        if path.is_file() {
+                            fs::remove_file(path)
+                                .map_err(|err| anyhow!("Failed to remove file: {err}"))?;
+                        }
+                    }
+                }
+
                 let mut dest_file = OpenOptions::new()
                     .write(true)
                     .create(true)
                     .truncate(true)
-                    .open(path)?;
-                cropped_image.write_to(&mut dest_file, Png)?;
+                    .open(path)
+                    .map_err(|err| anyhow!("Failed to open file: {err}"))?;
+                cropped_image
+                    .write_to(&mut dest_file, Png)
+                    .map_err(|err| anyhow!("Failed to write image: {err}"))?;
 
                 Ok(filename)
             }

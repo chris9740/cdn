@@ -11,6 +11,7 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::sign::Verifier;
 use serde::Serialize;
+use serde_json::json;
 use std::fs;
 use std::str::Utf8Error;
 use std::sync::Arc;
@@ -128,7 +129,10 @@ pub async fn push_resource(
         let mut field = item?;
         let content_type = field.content_disposition();
 
-        match field.name() {
+        let field_name = field.name();
+        dbg!(field_name);
+
+        match field_name {
             name if name == image_field => {
                 if content_type.get_filename().is_none() {
                     return Ok(HttpResponse::BadRequest().json(GenericError {
@@ -188,8 +192,9 @@ pub async fn push_resource(
         match data.storage.put(Resource::Avatars, id, image, &hash) {
             Ok(filename) => HttpResponse::Created().json(UploadResponse { filename }),
             Err(why) => {
-                println!("{why}");
-                HttpResponse::InternalServerError().json(why.to_string())
+                dbg!(&why);
+                HttpResponse::InternalServerError()
+                    .json(json!({ "error": "Internal server error", "message": why.to_string() }))
             }
         },
     )
